@@ -228,10 +228,19 @@ class MegatronEngine(BaseEngine):
 
                 provider.transformer_layer_spec = modelopt_transformer_layer_spec
 
-            provider.apply_overrides_and_finalize(
-                dtype=self.param_dtype,
-                overrides=provider_overrides,
-            )
+            if hasattr(provider, "apply_overrides_and_finalize"):
+                provider.apply_overrides_and_finalize(
+                    dtype=self.param_dtype,
+                    overrides=provider_overrides,
+                )
+            else:
+                provider.params_dtype = self.param_dtype
+                provider.fp16 = self.param_dtype == torch.float16
+                provider.bf16 = self.param_dtype == torch.bfloat16
+                for name, value in provider_overrides.items():
+                    setattr(provider, name, value)
+                if hasattr(provider, "finalize"):
+                    provider.finalize()
             self.provider = provider
             tf_config = None  # Will be set after model creation
         self.bridge = bridge
